@@ -1,0 +1,26 @@
+From a6a1edb878af48469ea45351abd6151aecda9318 Mon Sep 17 00:00:00 2001
+From: Daniel Hill <daniel@gluo.nz>
+Date: Tue, 28 Feb 2023 16:21:15 +1300
+Subject: [PATCH] provide a pkgconfig file with libkeyutils.a
+
+Signed-off-by: Daniel Hill <daniel@gluo.nz>
+---
+ Makefile | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/Makefile b/Makefile
+index 599b145..d8d4ee3 100644
+--- a/Makefile
++++ b/Makefile
+@@ -201,6 +201,8 @@ ifeq ($(NO_SOLIB),0)
+ 	$(LNS) $(LIBNAME) $(DESTDIR)$(LIBDIR)/$(SONAME)
+ 	mkdir -p $(DESTDIR)$(USRLIBDIR)
+ 	$(LNS) $(LIBDIR)/$(SONAME) $(DESTDIR)$(USRLIBDIR)/$(DEVELLIB)
++endif
++ifneq ($(filter 0, $(NO_ARLIB) $(NO_SOLIB)),)
+ 	sed \
+ 	-e 's,@VERSION\@,$(VERSION),g' \
+ 	-e 's,@prefix\@,$(PREFIX),g' \
+-- 
+2.38.1
+

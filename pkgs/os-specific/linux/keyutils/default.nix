@@ -20,6 +20,8 @@ stdenv.mkDerivation rec {
     # Before removing this patch, please ensure the package still builds by running eg.
     # nix-build -E 'with import ./. {}; pkgs.keyutils.override { stdenv = pkgs.llvmPackages_latest.stdenv; }'
     ./0001-Remove-unused-function-after_eq.patch
+    # fixes for static building
+    ./0001-provide-a-pkgconfig-file-with-libkeyutils.a.patch
   ];
 
   makeFlags = lib.optionals stdenv.hostPlatform.isStatic "NO_SOLIB=1";
