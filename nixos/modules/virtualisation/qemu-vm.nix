@@ -115,11 +115,19 @@ let
             ${toString config.virtualisation.diskSize}M
       fi
 
+      ${lib.optionalString (!cfg.qemu.minimalParams)
+      ''
       # Create a directory for storing temporary data of the running VM.
       if [ -z "$TMPDIR" ] || [ -z "$USE_TMPDIR" ]; then
           TMPDIR=$(mktemp -d nix-vm.XXXXXXXXXX --tmpdir)
       fi
 
+      # Create a directory for exchanging data with the VM.
+      mkdir -p "$TMPDIR/xchg"
+
+      cd "$TMPDIR"
+      ''
+      }
       ${lib.optionalString (cfg.useNixStoreImage)
         (if cfg.writableStore
           then ''
@@ -146,10 +154,6 @@ let
           ''
         )
       }
-
-      # Create a directory for exchanging data with the VM.
-      mkdir -p "$TMPDIR/xchg"
-
       ${lib.optionalString cfg.useBootLoader
       ''
         if ${if !cfg.persistBootDevice then "true" else "! test -e $TMPDIR/disk.img"}; then
@@ -169,9 +173,6 @@ let
           fi
         ''}
       ''}
-
-      cd "$TMPDIR"
-
       ${lib.optionalString (cfg.emptyDiskImages != []) "idx=0"}
       ${flip concatMapStrings cfg.emptyDiskImages (size: ''
         if ! test -e "empty$idx.qcow2"; then
@@ -182,10 +183,12 @@ let
 
       # Start QEMU.
       exec ${qemu-common.qemuBinary qemu} \
-          -name ${config.system.name} \
-          -m ${toString config.virtualisation.memorySize} \
-          -smp ${toString config.virtualisation.cores} \
-          -device virtio-rng-pci \
+          -name ${config.system.name} \''
+          +
+          (lib.optionalString (!cfg.qemu.minimalParams)
+            ''\n -m ${toString config.virtualisation.memorySize} \
+               -smp ${toString config.virtualisation.cores} \'') +
+          '' -device virtio-rng-pci \
           ${concatStringsSep " " config.virtualisation.qemu.networkingOptions} \
           ${concatStringsSep " \\\n    "
             (mapAttrsToList
@@ -673,6 +676,15 @@ in
           '';
         };
 
+      minimalParams = mkOption {
+        type = types.bool;
+        default = false;
+        description = lib.mdDoc ''
+          disable the creation and sharing of $TMP_DIR/xchg, and $SHARED_DIR.
+          and other parameters that aren't required to boot nixos
+       '';
+      };
+
       drives =
         mkOption {
           type = types.listOf (types.submodule driveOpts);
@@ -948,11 +960,11 @@ in
         source = builtins.storeDir;
         target = "/nix/store";
       };
-      xchg = {
+      xchg = mkIf (!config.virtualisation.qemu.minimalParams) {
         source = ''"$TMPDIR"/xchg'';
         target = "/tmp/xchg";
       };
-      shared = {
+      shared = mkIf (!config.virtualisation.qemu.minimalParams) {
         source = ''"''${SHARED_DIR:-$TMPDIR/xchg}"'';
         target = "/tmp/shared";
       };
@@ -980,10 +992,10 @@ in
       (mkIf cfg.qemu.virtioKeyboard [
         "-device virtio-keyboard"
       ])
-      (mkIf pkgs.stdenv.hostPlatform.isx86 [
+      (mkIf (pkgs.stdenv.hostPlatform.isx86 && cfg.graphics) [
         "-usb" "-device usb-tablet,bus=usb-bus.0"
       ])
-      (mkIf pkgs.stdenv.hostPlatform.isAarch [
+      (mkIf (pkgs.stdenv.hostPlatform.isAarch && cfg.graphics) [
         "-device virtio-gpu-pci" "-device usb-ehci,id=usb0" "-device usb-kbd" "-device usb-tablet"
       ])
       (let
