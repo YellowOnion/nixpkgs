@@ -37932,8 +37932,6 @@ with pkgs;
 
   factorio-demo = factorio.override { releaseType = "demo"; };
 
-  factorio-mods = callPackage ../games/factorio/mods.nix { };
-
   factorio-utils = callPackage ../games/factorio/utils.nix { };
 
   fairymax = callPackage ../games/fairymax { };

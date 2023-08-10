@@ -21,8 +21,6 @@ let
       lan = cfg.lan;
     };
     username = cfg.username;
-    password = cfg.password;
-    token = cfg.token;
     game_password = cfg.game-password;
     require_user_verification = cfg.requireUserVerification;
     max_upload_in_kilobytes_per_second = 0;
@@ -39,7 +37,7 @@ let
   } // cfg.extraSettings;
   serverSettingsFile = pkgs.writeText "server-settings.json" (builtins.toJSON (filterAttrsRecursive (n: v: v != null) serverSettings));
   serverAdminsFile = pkgs.writeText "server-adminlist.json" (builtins.toJSON cfg.admins);
-  modDir = pkgs.factorio-utils.mkModDirDrv cfg.mods cfg.mods-dat;
+  modDir = pkgs.factorio-utils.mkModDirPackage cfg.mods cfg.mods-dat cfg.modsIdentifier;
 in
 {
   options = {
@@ -136,6 +134,14 @@ in
           derivations via nixos-channel. Until then, this is for experts only.
         '';
       };
+      modsIdentifier = mkOption {
+        type = types.str;
+        default = "generic";
+        description = lib.mdDoc ''
+          A string to easily identify what set of mods are being used.
+          This is appended to the to the mod directory and zip file name.
+        '';
+      };
       mods-dat = mkOption {
         type = types.nullOr types.path;
         default = null;
@@ -143,6 +149,14 @@ in
           Mods settings can be changed by specifying a dat file, in the [mod
           settings file
           format](https://wiki.factorio.com/Mod_settings_file_format).
+        '';
+      };
+      modsZipPackage = mkOption {
+        type = types.package;
+        default = pkgs.factorio-utils.mkModZipPackage modDir;
+        readOnly = true;
+        description = lib.mdDoc ''
+          Provides a zip file of all mods, for easy use with http servers.
         '';
       };
       game-name = mkOption {
@@ -185,7 +199,7 @@ in
         type = types.nullOr types.str;
         default = null;
         description = lib.mdDoc ''
-          Your factorio.com login credentials. Required for games with visibility public.
+          Your factorio.com username, provides admin privileges
         '';
       };
       package = mkOption {
@@ -202,6 +216,7 @@ in
         default = null;
         description = lib.mdDoc ''
           Your factorio.com login credentials. Required for games with visibility public.
+          REMOVED: put a `player-data.json` file in `stateDir`: ${cfg.stateDir}
         '';
       };
       token = mkOption {
@@ -209,6 +224,7 @@ in
         default = null;
         description = lib.mdDoc ''
           Authentication token. May be used instead of 'password' above.
+          REMOVED: put a `player-data.json` file in ``stateDir`: ${cfg.stateDir}
         '';
       };
       game-password = mkOption {
@@ -246,6 +262,13 @@ in
   };
 
   config = mkIf cfg.enable {
+      assertions = [
+        { assertion = !(isNull cfg.password && isNull cfg.token);
+          message = ''
+                    Factorio: Putting authentication inside of the nix store is unsafe this feature has been removed.
+                    put player-data.json file in "${cfg.stateDir}".
+                    '';
+        }];
     systemd.services.factorio = {
       description   = "Factorio headless server";
       wantedBy      = [ "multi-user.target" ];
@@ -263,7 +286,6 @@ in
       serviceConfig = {
         Restart = "always";
         KillSignal = "SIGINT";
-        DynamicUser = true;
         StateDirectory = cfg.stateDirName;
         UMask = "0007";
         ExecStart = toString [
