@@ -44,7 +44,7 @@ stdenv.mkDerivation {
       "bindgen-0.64.0" = "sha256-GNG8as33HLRYJGYe0nw6qBzq86aHiGonyynEM7gaEE4=";
     };
   };
-  patches = [ ./nixos-friendly-scripts.patch ];
+
   buildInputs = [
     libaio
     keyutils

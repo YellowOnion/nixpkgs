@@ -22,7 +22,6 @@ in
 
   extraMeta = {
     branch = "master";
-    broken = stdenv.isAarch64;
     maintainers = with lib.maintainers; [ davidak Madouura pedrohlc raitobezarius ];
   };
 

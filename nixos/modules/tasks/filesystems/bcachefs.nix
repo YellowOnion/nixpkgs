@@ -61,10 +61,7 @@ in
       };
       boot.initrd.extraUtilsCommands = lib.mkIf (!config.boot.initrd.systemd.enable) ''
         copy_bin_and_libs ${pkgs.bcachefs-tools}/bin/bcachefs
-        substitute ${pkgs.bcachefs-tools}/bin/mount.bcachefs $out/bin/mount.bcachefs \
-          --replace '${pkgs.bash}/bin/sh' /bin/sh                                    \
-          --replace '${pkgs.bcachefs-tools}/sbin' /bin
-        chmod +x $out/bin/mount.bcachefs
+        copy_bin_and_libs ${pkgs.bcachefs-tools}/bin/mount.bcachefs
       '';
       boot.initrd.extraUtilsCommandsTest = ''
         $out/bin/bcachefs version
