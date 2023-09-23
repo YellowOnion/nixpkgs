@@ -16,24 +16,16 @@
 , fuse3
 , cargo
 , rustc
-, coreutils
 , rustPlatform
 , makeWrapper
 , fuseSupport ? false
+, version ? lib.importJSON ./version.json
 }:
-let
-  version = "1.3.1";
-in
 stdenv.mkDerivation {
   pname = "bcachefs-tools";
-  inherit version;
+  version = "unstable-${version.date}";
 
-  src = fetchFromGitHub {
-    owner = "koverstreet";
-    repo = "bcachefs-tools";
-    rev = "v${version}";
-    hash = "sha256-4TmH6YOW6ktISVA6RLo7JRl8/SnRzGMrdbyCr+mDkqY=";
-  };
+  src = fetchFromGitHub (builtins.removeAttrs version ["date"]);
 
   nativeBuildInputs = [
     pkg-config
@@ -71,11 +63,11 @@ stdenv.mkDerivation {
 
   makeFlags = [
     "PREFIX=${placeholder "out"}"
-    "VERSION=${version}"
+    "VERSION=${lib.strings.substring 0 7 version.rev}"
     "INITRAMFS_DIR=${placeholder "out"}/etc/initramfs-tools"
   ];
 
-  preCheck = lib.optionalString fuseSupport ''
+  preCheck = lib.optionalString (!fuseSupport) ''
     rm tests/test_fuse.py
   '';
 
@@ -83,11 +75,6 @@ stdenv.mkDerivation {
     smoke-test = nixosTests.bcachefs;
     inherit (nixosTests.installer) bcachefsSimple bcachefsEncrypted bcachefsMulti;
   };
-
-  postFixup = ''
-    wrapProgram $out/bin/mount.bcachefs \
-      --prefix PATH : ${lib.makeBinPath [ coreutils ]}
-  '';
 
   enableParallelBuilding = true;
 

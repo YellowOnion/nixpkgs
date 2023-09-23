@@ -204,7 +204,7 @@ in {
     linux_testing_bcachefs = callPackage ../os-specific/linux/kernel/linux-testing-bcachefs.nix {
       # Pinned on the last version which Kent's commits can be cleany rebased up.
       kernel = callPackage ../os-specific/linux/kernel/mainline.nix {
-        branch = "6.4";
+        branch = "6.6";
       };
       kernelPatches = [
         kernelPatches.bridge_stp_helper
