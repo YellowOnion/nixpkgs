@@ -6,15 +6,6 @@ let
 
   bootFs = filterAttrs (n: fs: (fs.fsType == "bcachefs") && (utils.fsNeededForBoot fs)) config.fileSystems;
 
-  mountCommand = pkgs.runCommand "mount.bcachefs" {} ''
-    mkdir -p $out/bin
-    cat > $out/bin/mount.bcachefs <<EOF
-    #!/bin/sh
-    exec "/bin/bcachefs" mount "\$@"
-    EOF
-    chmod +x $out/bin/mount.bcachefs
-  '';
-
   commonFunctions = ''
     prompt() {
         local name="$1"
@@ -51,28 +42,29 @@ in
 {
   config = mkIf (elem "bcachefs" config.boot.supportedFilesystems) (mkMerge [
     {
-      # We do not want to include bachefs in the fsPackages for systemd-initrd
-      # because we provide the unwrapped version of mount.bcachefs
-      # through the extraBin option, which will make it available for use.
-      system.fsPackages = lib.optional (!config.boot.initrd.systemd.enable) pkgs.bcachefs-tools;
-      environment.systemPackages = lib.optional (config.boot.initrd.systemd.enable) pkgs.bcachefs-tools;
+      # needed for systemd-remount-fs
+      system.fsPackages = [ pkgs.bcachefs-tools ];
+      systemd.package = pkgs.systemdBcachefs;
 
       # use kernel package with bcachefs support until it's in mainline
+      # TODO replace with requireKernelConfig
       boot.kernelPackages = pkgs.linuxPackages_testing_bcachefs;
     }
 
     (mkIf ((elem "bcachefs" config.boot.initrd.supportedFilesystems) || (bootFs != {})) {
       # chacha20 and poly1305 are required only for decryption attempts
       boot.initrd.availableKernelModules = [ "bcachefs" "sha256" "chacha20" "poly1305" ];
-
       boot.initrd.systemd.extraBin = {
+        # do we need this? boot/systemd.nix:566 & boot/systemd/initrd.nix:357
         "bcachefs" = "${pkgs.bcachefs-tools}/bin/bcachefs";
-        "mount.bcachefs" = "${mountCommand}/bin/mount.bcachefs";
+        "mount.bcachefs" = "${pkgs.bcachefs-tools}/bin/mount.bcachefs";
       };
-
       boot.initrd.extraUtilsCommands = lib.mkIf (!config.boot.initrd.systemd.enable) ''
         copy_bin_and_libs ${pkgs.bcachefs-tools}/bin/bcachefs
-        copy_bin_and_libs ${mountCommand}/bin/mount.bcachefs
+        substitute ${pkgs.bcachefs-tools}/bin/mount.bcachefs $out/bin/mount.bcachefs \
+          --replace '${pkgs.bash}/bin/sh' /bin/sh                                    \
+          --replace '${pkgs.bcachefs-tools}/sbin' /bin
+        chmod +x $out/bin/mount.bcachefs
       '';
       boot.initrd.extraUtilsCommandsTest = ''
         $out/bin/bcachefs version

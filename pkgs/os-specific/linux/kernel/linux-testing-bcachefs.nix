@@ -6,12 +6,15 @@
 # bcachefs-tools stores the expected-revision in:
 #   https://evilpiepirate.org/git/bcachefs-tools.git/tree/.bcachefs_revision
 # but this does not means that it'll be the latest-compatible revision
-, currentCommit ? "84f132d5696138bb038d2dc8f1162d2fab5ac832"
-, diffHash ? "sha256-RaBWBU7rXjJFb1euFAFBHWCBQAG7npaCodjp/vMYpyw="
+, version ? lib.importJSON ./bcachefs.json
 , kernelPatches # must always be defined in bcachefs' all-packages.nix entry because it's also a top-level attribute supplied by callPackage
 , argsOverride ? {}
 , ...
 } @ args:
+let
+  currentCommit = version.commit;
+  diffHash = version.diffHash;
+in
 
 # NOTE: bcachefs-tools should be updated simultaneously to preserve compatibility
 (kernel.override ( args // {

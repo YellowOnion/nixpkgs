@@ -12,3 +12,6 @@ COMMIT=1 ./update-libre.sh || echo "update-libre failed with exit code $?"
 
 echo "Update linux-hardened"
 COMMIT=1 ./hardened/update.py || echo "update-hardened failed with exit code $?"
+
+echo Update linux-testing-bcacehfs
+COMMIT=1 ./update-bchfs.sh || echo "update-bcachefs failed with exit code $?"

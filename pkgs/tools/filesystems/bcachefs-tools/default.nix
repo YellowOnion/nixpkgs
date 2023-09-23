@@ -17,26 +17,16 @@
 , fuse3
 , cargo
 , rustc
-, coreutils
 , rustPlatform
 , makeWrapper
 , fuseSupport ? false
+, version ? lib.importJSON ./version.json
 }:
-let
-  rev = "cfa816bf3f823a3bedfedd8e214ea929c5c755fe";
-in stdenv.mkDerivation {
+stdenv.mkDerivation {
   pname = "bcachefs-tools";
-  version = "unstable-2023-06-28";
+  version = "unstable-${version.date}";
 
-  src = fetchFromGitHub {
-    owner = "koverstreet";
-    repo = "bcachefs-tools";
-    inherit rev;
-    hash = "sha256-XgXUwyZV5N8buYTuiu1Y1ZU3uHXjZ/OZ1kbZ9d6Rt5I=";
-  };
-
-  # errors on fsck_err function. Maybe miss-detection?
-  NIX_CFLAGS_COMPILE = "-Wno-error=format-security";
+  src = fetchFromGitHub (builtins.removeAttrs version ["date"]);
 
   nativeBuildInputs = [
     pkg-config
@@ -54,7 +44,7 @@ in stdenv.mkDerivation {
       "bindgen-0.64.0" = "sha256-GNG8as33HLRYJGYe0nw6qBzq86aHiGonyynEM7gaEE4=";
     };
   };
-
+  patches = [ ./nixos-friendly-scripts.patch ];
   buildInputs = [
     libaio
     keyutils
@@ -75,23 +65,18 @@ in stdenv.mkDerivation {
 
   makeFlags = [
     "PREFIX=${placeholder "out"}"
-    "VERSION=${lib.strings.substring 0 7 rev}"
+    "VERSION=${lib.strings.substring 0 7 version.rev}"
     "INITRAMFS_DIR=${placeholder "out"}/etc/initramfs-tools"
   ];
 
-  preCheck = lib.optionalString fuseSupport ''
+  preCheck = lib.optionalString (!fuseSupport) ''
     rm tests/test_fuse.py
   '';
-
+  passthru.updateScript = ./update.sh;
   passthru.tests = {
     smoke-test = nixosTests.bcachefs;
     inherit (nixosTests.installer) bcachefsSimple bcachefsEncrypted bcachefsMulti;
   };
-
-  postFixup = ''
-    wrapProgram $out/bin/mount.bcachefs \
-      --prefix PATH : ${lib.makeBinPath [ coreutils ]}
-  '';
 
   enableParallelBuilding = true;
 

@@ -28996,7 +28996,11 @@ with pkgs;
     withNetworkd = true;
     withLibidn2 = true;
   };
-
+  # remove when util-linux 2.39.3 comes out
+  systemdBcachefs = systemd.override {
+    pname = "systemd-bcachefs";
+    util-linux = util-linuxMinimalBcachefs;
+  };
 
   udev =
     if (with stdenv.hostPlatform; isLinux && isStatic) then libudev-zero
@@ -29145,6 +29149,18 @@ with pkgs;
     systemdSupport = false;
     translateManpages = false;
   };
+  # remove when 2.39.3 comes out
+  util-linuxMinimalBcachefs = util-linuxMinimal.overrideAttrs (a:
+    let v = lib.importJSON ../os-specific/linux/util-linux/master.json;
+    in {
+      version = "master-${lib.strings.substring 0 7 v.rev}";
+      preConfigure = ''
+        ./autogen.sh
+        patchShebangs ./tools/all_syscalls
+      '';
+      nativeBuildInputs = a.nativeBuildInputs ++ [ bison automake autoconf gettext libtool asciidoctor ];
+      src = fetchFromGitHub v;
+  });
 
   v4l-utils = qt5.callPackage ../os-specific/linux/v4l-utils { };
 
