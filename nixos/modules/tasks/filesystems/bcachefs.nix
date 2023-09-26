@@ -11,9 +11,32 @@ let
         local name="$1"
         printf "enter passphrase for $name: "
     }
+
     tryUnlock() {
         local name="$1"
         local path="$2"
+        local success=false
+        local target
+        local uuid=$(echo -n $path | sed -e 's,UUID=\(.*\),\1,g')
+
+        for try in $(seq 10); do
+          if [ -e $path ]; then
+              success=true
+              break
+          else
+              target=$(blkid --uuid $uuid)
+              if $?; then
+                 success=true
+                 break
+              fi
+          fi
+          echo -n "."
+        done
+
+        if [ $success == true ]; then
+            path=$target
+        fi
+
         if bcachefs unlock -c $path > /dev/null 2> /dev/null; then    # test for encryption
             prompt $name
             until bcachefs unlock $path 2> /dev/null; do              # repeat until successfully unlocked
@@ -21,6 +44,8 @@ let
                 prompt $name
             done
             printf "unlocking successful.\n"
+        else
+            echo "Cannot unlock device $uuid with path $path" >&2
         fi
     }
   '';
@@ -44,7 +69,6 @@ in
     {
       # needed for systemd-remount-fs
       system.fsPackages = [ pkgs.bcachefs-tools ];
-      systemd.package = pkgs.systemdBcachefs;
 
       # use kernel package with bcachefs support until it's in mainline
       # TODO replace with requireKernelConfig
