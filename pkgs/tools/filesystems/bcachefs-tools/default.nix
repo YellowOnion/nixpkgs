@@ -12,7 +12,6 @@
 , lz4
 , attr
 , udev
-, valgrind
 , nixosTests
 , fuse3
 , cargo
@@ -72,7 +71,6 @@ stdenv.mkDerivation {
 
   doCheck = false; # needs bcachefs module loaded on builder
   checkFlags = [ "BCACHEFS_TEST_USE_VALGRIND=no" ];
-  nativeCheckInputs = [ valgrind ];
 
   makeFlags = [
     "PREFIX=${placeholder "out"}"
