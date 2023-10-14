@@ -562,6 +562,8 @@ in {
 
     zenpower = callPackage ../os-specific/linux/zenpower { };
 
+    ryzen_smu = callPackage ../os-specific/linux/ryzen_smu { };
+
     zfsStable = callPackage ../os-specific/linux/zfs/stable.nix {
       configFile = "kernel";
       inherit pkgs kernel;
