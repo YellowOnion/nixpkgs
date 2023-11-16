@@ -21,19 +21,20 @@
 , fuseSupport ? false
 }:
 let
-  rev = "6b175a022496572416918bd38d083120c23ba5f2";
-in
-stdenv.mkDerivation {
-  pname = "bcachefs-tools";
-  version = "unstable-2023-09-29";
-
-
+  rev = "fbe4d8ca847f1e16195642630776cbd85e7f941";
   src = fetchFromGitHub {
     owner = "koverstreet";
     repo = "bcachefs-tools";
     inherit rev;
-    hash = "sha256-qC6Bq2zdO8Tj+bZbIUvcVBqvuKccqDEX3HIeOXsEloQ=";
+    hash = "sha256-8FNdvvickRioJ8VOfnq90Kdo8y8Nq9zLTVHHX9pIc1Y=";
   };
+
+in
+stdenv.mkDerivation {
+  inherit src;
+  pname = "bcachefs-tools";
+  version = "unstable-2023-11-17";
+
 
   nativeBuildInputs = [
     pkg-config
@@ -46,7 +47,7 @@ stdenv.mkDerivation {
 
   cargoRoot = "rust-src";
   cargoDeps = rustPlatform.importCargoLock {
-    lockFile = ./Cargo.lock;
+    lockFile = "${src}/rust-src/Cargo.lock";
     outputHashes = {
       "bindgen-0.64.0" = "sha256-GNG8as33HLRYJGYe0nw6qBzq86aHiGonyynEM7gaEE4=";
     };
