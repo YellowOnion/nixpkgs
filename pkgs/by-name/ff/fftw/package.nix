@@ -11,6 +11,8 @@
   mpi,
   withDoc ? stdenv.cc.isGNU,
   testers,
+  isStatic ? false,
+  windows,
 }:
 
 assert lib.elem precision [
@@ -32,13 +34,26 @@ stdenv.mkDerivation (finalAttrs: {
     sha256 = "sha256-VskyVJhSzdz6/as4ILAgDHdCZ1vpIXnlnmIVs0DiZGc=";
   };
 
-  patches = [
-    (fetchpatch {
-      name = "remove_missing_FFTW3LibraryDepends.patch";
-      url = "https://github.com/FFTW/fftw3/pull/338/commits/f69fef7aa546d4477a2a3fd7f13fa8b2f6c54af7.patch";
-      hash = "sha256-lzX9kAHDMY4A3Td8necXwYLcN6j8Wcegi3A7OIECKeU=";
-    })
-  ];
+  patches =
+    [
+      (fetchpatch {
+        name = "remove_missing_FFTW3LibraryDepends.patch";
+        url = "https://github.com/FFTW/fftw3/pull/338/commits/f69fef7aa546d4477a2a3fd7f13fa8b2f6c54af7.patch";
+        hash = "sha256-lzX9kAHDMY4A3Td8necXwYLcN6j8Wcegi3A7OIECKeU=";
+      })
+    ]
+    ++ lib.optional stdenv.hostPlatform.isMinGW [
+      (fetchpatch {
+        name = "windows-shared-lib.patch";
+        url = "https://raw.githubusercontent.com/msys2/MINGW-packages/d73c36e88114b68df68bb8614e01b74082181d53/mingw-w64-fftw/0003-shared-lib.patch";
+        hash = "sha256-Kp47X+0OOLIH5Os8XGabGwTi103KXOYc2ZQcIVwxRQ8=";
+      })
+      (fetchpatch {
+        name = "no-dllexport.patch";
+        url = "https://raw.githubusercontent.com/msys2/MINGW-packages/d73c36e88114b68df68bb8614e01b74082181d53/mingw-w64-fftw/0002-no-dllexport.patch";
+        hash = "sha256-7lxobJHxv+Xbodso1qKB4Gt48S6MIyZjWOJAPuGOw0I=";
+      })
+    ];
 
   outputs = [
     "out"
@@ -54,13 +69,20 @@ stdenv.mkDerivation (finalAttrs: {
       # TODO: This may mismatch the LLVM version sin the stdenv, see #79818.
       llvmPackages.openmp
     ]
-    ++ lib.optional enableMpi mpi;
+    ++ lib.optional enableMpi mpi
+    ++ lib.optional (stdenv.hostPlatform.isMinGW) windows.mingw_w64_pthreads;
 
   configureFlags =
     [
-      "--enable-shared"
       "--enable-threads"
-      "--enable-openmp"
+    ]
+
+    ++ lib.optional (!stdenv.hostPlatform.isWindows) "--enable-openmp"
+    ++ lib.optional stdenv.hostPlatform.isWindows "--with-our-malloc"
+    ++ lib.optional (!isStatic) "--enable-shared"
+    ++ lib.optionals isStatic [
+      "--enable-static"
+      "--disable-shared"
     ]
 
     ++ lib.optional (precision != "double") "--enable-${precision}"
@@ -98,7 +120,7 @@ stdenv.mkDerivation (finalAttrs: {
       }
       .${precision}
     ];
-    platforms = platforms.unix;
+    platforms = platforms.unix ++ platforms.windows;
     # quad-precision requires libquadmath from gfortran, but libquadmath is not supported on aarch64
     badPlatforms = lib.optionals (precision == "quad-precision") platforms.aarch64;
   };
