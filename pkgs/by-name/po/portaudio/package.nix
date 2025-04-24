@@ -6,8 +6,11 @@
   libjack2,
   pkg-config,
   which,
-}:
+  cmake,
+}: let
+  hp = stdenv.hostPlatform;
 
+in
 stdenv.mkDerivation rec {
   pname = "portaudio";
   version = "190700_20210406";
@@ -21,19 +24,26 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [
     pkg-config
     which
-  ];
-  buildInputs =
-    [
-      libjack2
-    ]
-    # Enabling alsa causes linux-only sources to be built
-    ++ lib.optionals stdenv.hostPlatform.isLinux [ alsa-lib ];
+  ] ++ lib.optional hp.isWindows
+    # zynaddsubfx cannot find portaudio without also building portaudio via
+    # cmake suspect fixable, but will have to look in to why.
+    cmake
+  ;
+
+  buildInputs = lib.optionals (!hp.isWindows) [
+    libjack2
+  ]
+  # Enabling alsa causes linux-only sources to be built
+  ++ lib.optionals hp.isLinux [ alsa-lib ];
 
   configureFlags = [
     "--disable-mac-universal"
     "--enable-cxx"
   ];
 
+  # for some reason we can't link this driver, needs investigating.
+  # ASIO or jack support is could be considered for windows targets
+  cmakeFlags =  lib.optional hp.isWindows "-DPA_USE_WDMKS=0";
   env.NIX_CFLAGS_COMPILE = lib.optionalString stdenv.cc.isClang "-Wno-error=nullability-inferred-on-nested-type -Wno-error=nullability-completeness-on-arrays -Wno-error=implicit-const-int-float-conversion";
 
   # Disable parallel build as it fails as:
@@ -53,11 +63,11 @@ stdenv.mkDerivation rec {
     ''
       make install
     ''
-    + lib.optionalString stdenv.hostPlatform.isLinux ''
+    + lib.optionalString hp.isLinux ''
       # fixup .pc file to find alsa library
       sed -i "s|-lasound|-L${alsa-lib.out}/lib -lasound|" "$out/lib/pkgconfig/"*.pc
     ''
-    + lib.optionalString stdenv.hostPlatform.isDarwin ''
+    + lib.optionalString hp.isDarwin ''
       cp include/pa_mac_core.h $out/include/pa_mac_core.h
     '';
 
