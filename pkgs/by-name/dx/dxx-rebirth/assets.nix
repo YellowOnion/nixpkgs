@@ -2,7 +2,8 @@
   lib,
   stdenv,
   requireFile,
-  gogUnpackHook,
+  innoUnpackHook,
+  file-rename,
 }:
 
 let
@@ -27,7 +28,14 @@ let
         '';
       };
 
-      nativeBuildInputs = [ gogUnpackHook ];
+      nativeBuildInputs = [
+        innoUnpackHook
+        file-rename
+      ];
+
+      postUnpackInno = ''
+        find . -depth -print -execdir rename -f 'y/A-Z/a-z/' '{}' \;
+      '';
 
       dontBuild = true;
       dontFixup = true;
